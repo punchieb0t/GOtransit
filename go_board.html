@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GO Transit - Clarkson GO</title>
+    <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --black: #000;
+            --white: #fff;
+            --dark-grey: #1e1c1c;
+            --light-grey: #dbdbdb;
+            --yellow: #d9d499;
+            --light-green: #9fd30a;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            border: 0 solid #e5e7eb;
+        }
+        
+        body {
+            background-color: var(--black);
+            font-family: 'Overpass', 'Overpass Fallback', -apple-system, BlinkMacSystemFont, sans-serif;
+            font-style: normal;
+            color: var(--white);
+            min-height: 100vh;
+            font-size: 14px;
+        }
+        
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            background: var(--black);
+            position: relative;
+        }
+        
+        .station-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .go-logo {
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .go-logo img {
+            width: 32px;
+            height: auto;
+        }
+        
+        .station-menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 8px;
+            background: var(--dark-grey);
+            border: 1px solid #333;
+            border-radius: 6px;
+            overflow: hidden;
+            z-index: 100;
+            min-width: 180px;
+        }
+        
+        .station-menu.show {
+            display: block;
+        }
+        
+        .station-menu div {
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .station-menu div:hover {
+            background: #2a2a2a;
+        }
+        
+        .station-info h1 {
+            font-size: 22px;
+            font-weight: 700;
+        }
+        
+        .current-time {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--white);
+        }
+        
+        /* Table Header */
+        .table-header {
+            display: grid;
+            grid-template-columns: 60px 50px 1fr 70px;
+            gap: 10px;
+            padding: 8px 16px;
+            background: var(--dark-grey);
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--light-grey);
+        }
+        
+        .table-header > div {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        
+        .table-header > div:nth-child(2) {
+            align-items: center;
+        }
+        
+        .table-header > div:nth-child(3) {
+            padding-left: 4px;
+        }
+        
+        .table-header > div:last-child {
+            align-items: flex-end;
+            padding-right: 4px;
+        }
+        
+        /* Departures */
+        .departures {
+            border-top: 1px solid var(--dark-grey);
+        }
+        
+        .departure-row {
+            display: grid;
+            grid-template-columns: 60px 50px 1fr 70px;
+            gap: 10px;
+            padding: 14px 16px;
+            border-bottom: 1px dotted var(--light-grey);
+            align-items: center;
+        }
+        
+        .platform {
+            font-weight: 700;
+            font-size: 14px;
+            color: var(--light-green);
+        }
+        
+        .route-badge {
+            color: var(--white);
+            font-weight: 700;
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            text-align: center;
+            display: inline-block;
+        }
+        
+        /* Line colors */
+        .route-badge.BR { background: #3b82f6; }  /* Barrie - blue */
+        .route-badge.KI { background: #22c55e; }  /* Kitchener - green */
+        .route-badge.LE { background: #ef4444; }  /* Lakeshore East - red */
+        .route-badge.LW { background: #a8193d; }  /* Lakeshore West - maroon */
+        .route-badge.MI { background: #f97316; }  /* Milton - orange */
+        .route-badge.RH { background: #06b6d4; }  /* Richmond Hill - cyan */
+        .route-badge.ST { background: #92400e; }  /* Stouffville - brown */
+        .route-badge.default { background: #6b7280; } /* default gray */
+        
+        .direction {
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .time {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--yellow);
+            text-align: right;
+        }
+        
+        .time.approaching {
+            color: var(--yellow);
+            opacity: 0.6;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .blink-synced {
+            color: var(--light-green);
+            animation: blink 1s ease-in-out infinite;
+        }
+        
+        /* Station Selector */
+        .station-selector {
+            position: relative;
+        }
+        
+        .station-btn {
+            background: transparent;
+            border: none;
+            color: var(--white);
+            padding: 8px 14px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            font-family: inherit;
+        }
+        
+        /* Loading */
+        .loading {
+            text-align: center;
+            padding: 40px 16px;
+            color: var(--light-grey);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="station-info">
+            <div class="go-logo" onclick="toggleStations()">
+                <img src="go_transit_logo.svg" alt="GO Transit">
+                <div class="station-menu" id="stationMenu">
+                    <div onclick="selectStation('CL', 'Clarkson GO')">Clarkson GO</div>
+                    <div onclick="selectStation('PO', 'Port Credit GO')">Port Credit GO</div>
+                    <div onclick="selectStation('OA', 'Oakville GO')">Oakville GO</div>
+                    <div onclick="selectStation('ML', 'Milton GO')">Milton GO</div>
+                    <div onclick="selectStation('UN', 'Union Station')">Union Station</div>
+                </div>
+            </div>
+            <h1 id="stationName">Clarkson GO</h1>
+        </div>
+        <div class="current-time" id="currentTime">--:--:--</div>
+    </div>
+    
+    <div class="table-header">
+        <div>
+            <div style="font-weight: 700;">Pltfm.</div>
+            <div style="font-weight: 400;">Quai</div>
+        </div>
+        <div style="text-align: center;">
+            <div style="font-weight: 700;">Route</div>
+            <div style="font-weight: 400;">Ligne</div>
+        </div>
+        <div>
+            <div style="font-weight: 700;">Direction</div>
+            <div style="font-weight: 400;">Direction</div>
+        </div>
+        <div style="text-align: right;">
+            <div style="font-weight: 700;">Time</div>
+            <div style="font-weight: 400;">Temps</div>
+        </div>
+    </div>
+    
+    <div class="departures" id="departures">
+        <div class="loading">Loading departures...</div>
+    </div>
+
+    <script>
+        let currentStop = 'CL';
+        
+        function toggleStations() {
+            document.getElementById('stationMenu').classList.toggle('show');
+        }
+        
+        function selectStation(code, name) {
+            currentStop = code;
+            document.getElementById('stationName').textContent = name;
+            document.getElementById('stationMenu').classList.remove('show');
+            fetchDepartures();
+        }
+        
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('en-US', { hour12: false });
+        }
+        
+        async function fetchDepartures() {
+            const container = document.getElementById('departures');
+            container.innerHTML = '<div class="loading">Loading departures...</div>';
+            
+            try {
+                const response = await fetch(`/api/?stop=${currentStop}`);
+                const data = await response.json();
+                
+                const lines = data.NextService?.Lines || [];
+                
+                if (lines.length === 0) {
+                    container.innerHTML = '<div class="loading">No departures</div>';
+                    return;
+                }
+                
+                const now = new Date();
+                const departures = lines
+                    .filter(line => line.ComputedDepartureTime)
+                    .map(line => {
+                        const depTime = new Date(line.ComputedDepartureTime);
+                        const mins = Math.round((depTime - now) / 60000);
+                        
+                        let dest = line.DirectionName || 'Union Station';
+                        dest = dest.replace(/^[A-Z]+\s*-\s*/, '');
+                        
+                        return {
+                            platform: line.ScheduledPlatform || '-',
+                            route: line.LineCode || 'LW',
+                            destination: dest,
+                            minutes: mins
+                        };
+                    })
+                    .filter(d => d.minutes >= 0)
+                    .sort((a, b) => a.minutes - b.minutes)
+                    .slice(0, 6);
+                
+                if (departures.length === 0) {
+                    container.innerHTML = '<div class="loading">No upcoming departures</div>';
+                    return;
+                }
+                
+                container.innerHTML = departures.map(dep => {
+                    // First 2 times are "approaching" (opacity 60%)
+                    const isApproaching = dep.minutes < 5;
+                    const routeClass = dep.route || 'default';
+                    const timeDisplay = dep.minutes === 0 ? '<span class="blink-synced">Due</span>' : dep.minutes;
+                    
+                    return `
+                        <div class="departure-row">
+                            <div class="platform">${dep.platform}</div>
+                            <div><span class="route-badge ${routeClass}">${dep.route}</span></div>
+                            <div class="direction">${dep.destination}</div>
+                            <div class="time ${isApproaching ? 'approaching' : ''}">${timeDisplay}</div>
+                        </div>
+                    `;
+                }).join('');
+                
+            } catch (err) {
+                console.error(err);
+                container.innerHTML = '<div class="loading">Error loading departures</div>';
+            }
+        }
+        
+        // Initialize
+        updateTime();
+        fetchDepartures();
+        
+        // Update every 30 seconds
+        setInterval(() => {
+            updateTime();
+            fetchDepartures();
+        }, 30000);
+        
+        setInterval(updateTime, 1000);
+        
+        // Close menu on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.go-logo')) {
+                document.getElementById('stationMenu').classList.remove('show');
+            }
+        });
+    </script>
+</body>
+</html>
