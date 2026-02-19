@@ -28,7 +28,7 @@
             font-style: normal;
             color: var(--white);
             min-height: 100vh;
-            font-size: 14px;
+            font-size: 20px;
         }
         
         /* Header */
@@ -36,7 +36,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 16px;
+            padding: 20px 24px;
             background: var(--black);
             position: relative;
         }
@@ -44,7 +44,7 @@
         .station-info {
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: 16px;
         }
         
         .go-logo {
@@ -53,7 +53,7 @@
         }
         
         .go-logo img {
-            width: 32px;
+            width: 42px;
             height: auto;
         }
         
@@ -62,13 +62,13 @@
             position: absolute;
             top: 100%;
             left: 0;
-            margin-top: 8px;
+            margin-top: 10px;
             background: var(--dark-grey);
             border: 1px solid #333;
-            border-radius: 6px;
+            border-radius: 8px;
             overflow: hidden;
             z-index: 100;
-            min-width: 180px;
+            min-width: 220px;
         }
         
         .station-menu.show {
@@ -76,9 +76,9 @@
         }
         
         .station-menu div {
-            padding: 10px 16px;
+            padding: 14px 20px;
             cursor: pointer;
-            font-size: 13px;
+            font-size: 16px;
             font-weight: 600;
         }
         
@@ -87,12 +87,12 @@
         }
         
         .station-info h1 {
-            font-size: 22px;
+            font-size: 28px;
             font-weight: 700;
         }
         
         .current-time {
-            font-size: 20px;
+            font-size: 26px;
             font-weight: 600;
             color: var(--white);
         }
@@ -100,11 +100,11 @@
         /* Table Header */
         .table-header {
             display: grid;
-            grid-template-columns: 60px 50px 1fr 70px;
-            gap: 10px;
-            padding: 8px 16px;
+            grid-template-columns: 80px 65px 1fr 90px;
+            gap: 14px;
+            padding: 12px 24px;
             background: var(--dark-grey);
-            font-size: 11px;
+            font-size: 14px;
             text-transform: uppercase;
             color: var(--light-grey);
         }
@@ -135,25 +135,25 @@
         
         .departure-row {
             display: grid;
-            grid-template-columns: 60px 50px 1fr 70px;
-            gap: 10px;
-            padding: 14px 16px;
-            border-bottom: 1px dotted var(--light-grey);
+            grid-template-columns: 80px 65px 1fr 90px;
+            gap: 14px;
+            padding: 18px 24px;
+            border-bottom: 3px dotted var(--light-grey);
             align-items: center;
         }
         
         .platform {
             font-weight: 700;
-            font-size: 14px;
+            font-size: 18px;
             color: var(--light-green);
         }
         
         .route-badge {
             color: var(--white);
             font-weight: 700;
-            font-size: 12px;
-            padding: 4px 8px;
-            border-radius: 4px;
+            font-size: 15px;
+            padding: 6px 12px;
+            border-radius: 5px;
             text-align: center;
             display: inline-block;
         }
@@ -170,6 +170,7 @@
         
         .direction {
             font-weight: 600;
+            font-size: 16px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -177,7 +178,7 @@
         
         .time {
             font-weight: 700;
-            font-size: 15px;
+            font-size: 20px;
             color: var(--yellow);
             text-align: right;
         }
@@ -216,7 +217,8 @@
         /* Loading */
         .loading {
             text-align: center;
-            padding: 40px 16px;
+            padding: 50px 16px;
+            font-size: 18px;
             color: var(--light-grey);
         }
     </style>
