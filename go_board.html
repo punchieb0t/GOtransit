@@ -28,7 +28,7 @@
             font-style: normal;
             color: var(--white);
             min-height: 100vh;
-            font-size: 20px;
+            font-size: 18px;
         }
         
         /* Header */
@@ -100,9 +100,9 @@
         /* Table Header */
         .table-header {
             display: grid;
-            grid-template-columns: 80px 65px 1fr 90px;
+            grid-template-columns: 50px 50px 1fr 90px;
             gap: 14px;
-            padding: 12px 24px;
+            padding: 14px 24px;
             background: var(--dark-grey);
             font-size: 14px;
             text-transform: uppercase;
@@ -113,6 +113,10 @@
             display: flex;
             flex-direction: column;
             gap: 2px;
+        }
+        
+        .table-header > div:nth-child(1) {
+            align-items: center;
         }
         
         .table-header > div:nth-child(2) {
@@ -135,7 +139,7 @@
         
         .departure-row {
             display: grid;
-            grid-template-columns: 80px 65px 1fr 90px;
+            grid-template-columns: 50px 50px 1fr 90px;
             gap: 14px;
             padding: 18px 24px;
             border-bottom: 3px dotted var(--light-grey);
@@ -144,14 +148,15 @@
         
         .platform {
             font-weight: 700;
-            font-size: 18px;
+            font-size: 20px;
             color: var(--light-green);
+            text-align: center;
         }
         
         .route-badge {
             color: var(--white);
             font-weight: 700;
-            font-size: 15px;
+            font-size: 16px;
             padding: 6px 12px;
             border-radius: 5px;
             text-align: center;
@@ -170,7 +175,7 @@
         
         .direction {
             font-weight: 600;
-            font-size: 16px;
+            font-size: 18px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
@@ -178,7 +183,7 @@
         
         .time {
             font-weight: 700;
-            font-size: 20px;
+            font-size: 22px;
             color: var(--yellow);
             text-align: right;
         }
@@ -284,7 +289,6 @@
         
         async function fetchDepartures() {
             const container = document.getElementById('departures');
-            container.innerHTML = '<div class="loading">Loading departures...</div>';
             
             try {
                 const response = await fetch(`/api/?stop=${currentStop}`);
@@ -293,7 +297,6 @@
                 const lines = data.NextService?.Lines || [];
                 
                 if (lines.length === 0) {
-                    container.innerHTML = '<div class="loading">No departures</div>';
                     return;
                 }
                 
@@ -319,7 +322,6 @@
                     .slice(0, 6);
                 
                 if (departures.length === 0) {
-                    container.innerHTML = '<div class="loading">No upcoming departures</div>';
                     return;
                 }
                 
@@ -341,7 +343,6 @@
                 
             } catch (err) {
                 console.error(err);
-                container.innerHTML = '<div class="loading">Error loading departures</div>';
             }
         }
         
