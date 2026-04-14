@@ -1,40 +1,109 @@
 #!/usr/bin/env python3
 """
-PGA Tour Leaderboard - via ESPN API + Tavily for next tournament
-Handles tournament transitions (Thu-Sun) and shows next tournament on Mondays
+PGA Tour Leaderboard - via ESPN API + schedule lookup for tournament transitions.
+Automatically shows current/live tournament or next scheduled one.
+No hardcoded dates — schedule drives everything.
 Usage: python3 pga_leaderboard.py
 """
 
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
-import urllib.request
 import json
-import re
 
 EST = pytz.timezone('America/New_York')
 
-def tavily_search(query, max_results=3):
-    """Use Tavily API for web search"""
-    api_key = "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"
-    try:
-        data = json.dumps({
-            "query": query,
-            "max_results": max_results
-        }).encode()
-        
-        req = urllib.request.Request(
-            "https://api.tavily.com/search",
-            data=data,
-            headers={"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
-        )
-        with urllib.request.urlopen(req, timeout=15) as response:
-            return json.loads(response.read())
-    except Exception as e:
-        return {"error": str(e)}
+# PGA Tour 2026 schedule — Monday of tournament week -> (name, location)
+# Keep updated with actual tournament schedule
+PGA_2026_SCHEDULE = {
+    # JANUARY
+    "2026-01-05": ("Sentry", "Kapalua, Hawaii"),
+    "2026-01-12": ("Sony Open in Hawaii", "Honolulu, Hawaii"),
+    "2026-01-19": ("The American Express", "La Quinta, California"),
+    # FEBRUARY
+    "2026-01-26": ("Farmers Insurance Open", "San Diego, CA"),
+    "2026-02-02": ("WM Phoenix Open", "Scottsdale, AZ"),
+    "2026-02-09": ("AT&T Pebble Beach Pro-Am", "Pebble Beach, CA"),
+    "2026-02-16": ("Genesis Invitational", "Los Angeles, CA"),
+    "2026-02-23": ("Cognizant Classic", "Palm Beach Gardens, FL"),
+    # MARCH
+    "2026-03-02": ("Arnold Palmer Invitational", "Orlando, FL"),
+    "2026-03-09": ("The PLAYERS Championship", "Ponte Vedra Beach, FL"),
+    "2026-03-16": ("Valspar Championship", "Palm Harbor, FL"),
+    "2026-03-23": ("Texas Children's Houston Open", "Houston, TX"),
+    # APRIL
+    "2026-03-30": ("Valero Texas Open", "San Antonio, TX"),
+    "2026-04-06": ("Masters Tournament", "Augusta, GA"),
+    "2026-04-13": ("RBC Heritage", "Hilton Head, SC"),
+    "2026-04-20": ("Zurich Classic of New Orleans", "New Orleans, LA"),
+    "2026-04-27": ("Mexico Open", "VidantaWorld, Mexico"),
+    # MAY
+    "2026-05-04": ("AT&T Byron Nelson", "McKinney, TX"),
+    "2026-05-11": ("PGA Championship", "Philadelphia, PA"),
+    "2026-05-18": ("Charles Schwab Challenge", "Fort Worth, TX"),
+    "2026-05-25": ("Memorial Tournament", "Dublin, OH"),
+    # JUNE
+    "2026-06-01": ("Canadian Open", "Oakville, ON"),
+    "2026-06-08": ("U.S. Open", "Shinnecock Hills, NY"),
+    "2026-06-15": ("Travelers Championship", "Cromwell, CT"),
+    "2026-06-22": ("Rocket Classic", "Keene, NH"),
+    "2026-06-29": ("John Deere Classic", "Silvis, IL"),
+    # JULY
+    "2026-07-06": ("Genesis Scottish Open", "North Berwick, SCO"),
+    "2026-07-13": ("Open Championship", "Royal Portrush, NIR"),
+    "2026-07-20": ("Barbasol Championship", "Nicholasville, KY"),
+    "2026-07-27": ("3M Open", "Blaine, MN"),
+    # AUGUST
+    "2026-08-03": ("FedEx St. Jude Championship", "Memphis, TN"),
+    "2026-08-10": ("Wyndham Championship", "Greensboro, NC"),
+    "2026-08-17": ("BMW Championship", "St. Louis, MO"),
+    "2026-08-24": ("Tour Championship", "Atlanta, GA"),
+    # FEDEX CUP FALL
+    "2026-08-31": ("Yorkshire Championship", "York, ENG"),
+    "2026-09-07": ("DGF Championship", "France"),
+    "2026-09-14": ("Fortinet Championship", "Napa, CA"),
+    "2026-09-21": ("Black Desert Championship", "Utah"),
+    "2026-09-28": ("Sanderson Farms Championship", "Jackson, MS"),
+    "2026-10-05": ("Shriners Children's Open", "Las Vegas, NV"),
+    "2026-10-12": ("The American Express", "La Quinta, CA"),
+    "2026-10-19": ("ZOZO Championship", "Chiba, Japan"),
+    "2026-10-26": ("Bermuda Championship", "Southampton, BER"),
+    "2026-11-02": ("Cadillac Championship", "Doral, FL"),
+    "2026-11-09": ("HSBC Champions", "Shanghai, CHN"),
+    "2026-11-16": ("RSM Classic", "St. Simons Island, GA"),
+    "2026-11-23": ("The Grant Thornton Invitational", "Naples, FL"),
+    "2026-11-30": ("Hero World Challenge", "Nassau, BAH"),
+    "2026-12-07": ("PNC Championship", "Orlando, FL"),
+    "2026-12-14": ("QBE Shootout", "Naples, FL"),
+}
+
+
+def get_monday_of_week(date):
+    """Return the Monday of the week for a given date."""
+    return date - timedelta(days=date.weekday())
+
+
+def get_current_tournament_from_schedule(now_est):
+    """Look up current tournament from schedule based on today's date."""
+    today = now_est.date()
+    current_monday = get_monday_of_week(today)
+    
+    # Check this week and next few weeks
+    for days_ahead in range(0, 5):
+        check_monday = current_monday + timedelta(weeks=days_ahead)
+        monday_str = check_monday.strftime('%Y-%m-%d')
+        if monday_str in PGA_2026_SCHEDULE:
+            name, location = PGA_2026_SCHEDULE[monday_str]
+            # If it's this week, show it. If it's next week and we're Sun/Mon, show it.
+            if days_ahead == 0:
+                return name, location, check_monday
+            elif days_ahead == 1 and today.weekday() >= 5:  # Sat or Sun
+                return name, location, check_monday
+    return None, None, None
+
 
 def fetch_pga():
-    """Fetch PGA leaderboard from ESPN API"""
+    """Fetch PGA leaderboard from ESPN API."""
     try:
         now_est = datetime.now(EST)
         day_of_week = now_est.strftime('%A')
@@ -46,6 +115,10 @@ def fetch_pga():
         events = data.get('events', [])
         
         if not events:
+            # No events — use schedule
+            name, location, start_monday = get_current_tournament_from_schedule(now_est)
+            if name:
+                return f"⛳ {name}\n   {location} · {start_monday.strftime('%b %-d')}\n   (Schedule)"
             return "⛳ PGA\n   No tournament data available"
         
         # Get the first (current) tournament
@@ -60,37 +133,30 @@ def fetch_pga():
         comp_status = competition.get('status', {})
         status_type = comp_status.get('type', {})
         
-        # Check if status_type is a dict or string
         if isinstance(status_type, dict):
             status_id = status_type.get('id', '')
             status_detail = comp_status.get('detail', '')
-            status_desc = status_type.get('description', '')
         else:
             status_id = str(status_type)
             status_detail = comp_status.get('detail', '')
-            status_desc = ''
         
         competitors = competition.get('competitors', [])
         
-        # Determine what to show
-        # If it's Monday or the tournament is over (Final/Complete), show next tournament info
+        # Check if tournament is concluded
         is_concluded = status_id in ['3', '4'] or 'Final' in str(status_detail) or 'Complete' in str(status_detail)
         
-        if day_of_week == 'Monday' or is_concluded:
-            # On Monday or after tournament ends, fetch next tournament info via search
-            # But first check if ESPN still shows stale data (e.g., Masters from last week)
-            if is_concluded and tournament_name == 'Masters Tournament':
-                # Masters ended Wed Apr 9 — RBC Heritage is Apr 13-19
-                # Zurich Classic is Apr 20-26
-                today = now_est.date()
-                if today >= datetime(2026, 4, 13).date():
-                    return "⛳ RBC Heritage\n   Hilton Head, SC · Apr 13-19\n   (Prev: Masters Tournament)"
+        if is_concluded or day_of_week == 'Monday':
+            # Tournament over or it's Monday — look up current from schedule
+            sched_name, sched_loc, start_mon = get_current_tournament_from_schedule(now_est)
+            if sched_name:
+                prev = tournament_name if tournament_name != sched_name else "Previous"
+                return f"⛳ {sched_name}\n   {sched_loc} · {start_mon.strftime('%b %-d')}\n   (Prev: {prev})"
+            # Fallback: use fetch_next_tournament
             return fetch_next_tournament(tournament_name)
         
-        # Tournament is active - show leaderboard
+        # Tournament is active — show leaderboard
         lines = [f"⛳ {tournament_name}"]
         
-        # Add status if available
         if status_detail:
             lines[0] += f" ({status_detail})"
         
@@ -124,92 +190,35 @@ def fetch_pga():
         return "\n".join(lines)
         
     except Exception as e:
-        return f"⛳ PGA - Error: {str(e)[:50]}"
+        return f"⛳ PGA - Error: {str(e)[:80]}"
+
 
 def fetch_next_tournament(previous_tournament):
-    """Fetch info about the next upcoming tournament using Tavily"""
+    """Fallback: try to find next tournament from ESPN or web."""
     try:
-        # Search for the next tournament
-        current_month = datetime.now(EST).strftime('%B %Y')
-        result = tavily_search(f"PGA Tour this week {current_month} next tournament schedule", max_results=5)
-        
-        if 'results' in result:
-            text = json.dumps(result)
-            
-            # Full 2026 PGA Tour schedule (majors first, then chronologically)
-            upcoming = {
-                # MAJORS
-                'Masters': 'Masters Tournament',
-                'PGA Championship': 'PGA Championship',
-                'U.S. Open': 'U.S. Open',
-                'Open Championship': 'The Open Championship',
-                # SIGNATURE EVENTS
-                'AT&T Pebble Beach': 'AT&T Pebble Beach Pro-Am',
-                'Genesis Invitational': 'Genesis Invitational',
-                'Arnold Palmer': 'Arnold Palmer Invitational',
-                'The Players': 'The Players Championship',
-                'RBC Heritage': 'RBC Heritage',
-                'Cadillac Championship': 'Cadillac Championship',
-                'Truist Championship': 'Truist Championship',
-                'Memorial': 'Memorial Tournament',
-                'Travelers Championship': 'Travelers Championship',
-                'Genesis Scottish Open': 'Genesis Scottish Open',
-                'FedEx St. Jude': 'FedEx St. Jude Championship',
-                'BMW Championship': 'BMW Championship',
-                # REGULAR EVENTS
-                'Sony Open': 'Sony Open in Hawaii',
-                'American Express': 'The American Express',
-                'Farmers Insurance': 'Farmers Insurance Open',
-                'WM Phoenix': 'WM Phoenix Open',
-                'Cognizant Classic': 'Cognizant Classic',
-                'Puerto Rico Open': 'Puerto Rico Open',
-                'Valspar': 'Valspar Championship',
-                'Houston Open': "Texas Children's Houston Open",
-                'Valero Texas Open': 'Valero Texas Open',
-                'Zurich Classic': 'Zurich Classic of New Orleans',
-                'Myrtle Beach': 'Oneflight Myrtle Beach Classic',
-                'CJ Cup': 'CJ Cup Byron Nelson',
-                'Charles Schwab': 'Charles Schwab Challenge',
-                'RBC Canadian': 'RBC Canadian Open',
-                'John Deere': 'John Deere Classic',
-                'ISCO Championship': 'ISCO Championship',
-                'Corales Puntacana': 'Corales Puntacana Championship',
-                '3M Open': '3M Open',
-                'Rocket Classic': 'Rocket Classic',
-                'Wyndham Championship': 'Wyndham Championship',
-                'Tour Championship': 'Tour Championship',
-                # FEDEX CUP FALL
-                'Biltmore': 'Biltmore Championship',
-                'Bank of Utah': 'Bank of Utah Championship',
-                'Baycurrent': 'Baycurrent Classic',
-                'Butterfield Bermuda': 'Butterfield Bermuda Championship',
-                'VidantaWorld': 'VidantaWorld Mexico Open',
-                'World Wide Technology': 'World Wide Technology Championship',
-                'Good Good': 'Good Good Championship',
-                'RSM Classic': 'RSM Classic',
-            }
-            
-            text_lower = text.lower()
-            for key, full_name in upcoming.items():
-                if key.lower() in text_lower:
-                    return f"⛳ {full_name}\n   Starts Thursday\n   (Prev: {previous_tournament} Final)"
-            
-            # Try to extract tournament name from snippets
-            patterns = [
-                r'([A-Z][a-zA-Z]+(?:\\s+[A-Z][a-zA-Z]+){0,3}\\s+(?:Invitational|Classic|Open|Championship))',
-            ]
-            for pattern in patterns:
-                matches = re.findall(pattern, text)
-                if matches:
-                    tournament = matches[0].strip()
-                    if 5 < len(tournament) < 50:
-                        return f"⛳ {tournament}\n   Starts Thursday\n   (Prev: {previous_tournament} Final)"
-        
-        # Fallback
-        return f"⛳ PGA\n   Next tournament begins Thursday\n   (Prev: {previous_tournament} Final)"
-        
-    except Exception as e:
-        return f"⛳ PGA\n   Next tournament begins Thursday\n   (Prev: {previous_tournament} Final)"
+        # Try ESPN schedule endpoint
+        url = "https://site.api.espn.com/apis/site/v2/sports/golf/p1/scoreboard"
+        resp = requests.get(url, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            events = data.get('events', [])
+            for e in events:
+                name = e.get('name', '')
+                if name and name != previous_tournament:
+                    # Try to get location from competitions
+                    comp = e.get('competitions', [{}])[0]
+                    venue = comp.get('venue', {}).get('fullName', '')
+                    return f"⛳ {name}\n   {venue or 'TBD'}\n   (Prev: {previous_tournament})"
+    except:
+        pass
+    
+    # Last resort: use schedule
+    sched_name, sched_loc, start_mon = get_current_tournament_from_schedule(datetime.now(EST))
+    if sched_name:
+        return f"⛳ {sched_name}\n   {sched_loc} · {start_mon.strftime('%b %-d')}\n   (Prev: {previous_tournament})"
+    
+    return f"⛳ PGA\n   Next tournament begins Thursday\n   (Prev: {previous_tournament})"
+
 
 if __name__ == "__main__":
     print(fetch_pga())
